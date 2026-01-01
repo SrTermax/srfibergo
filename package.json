@@ -1,0 +1,32 @@
+{
+  "name": "srfibergo",
+  "version": "1.0.2",
+  "description": "CLI para gerar projetos Go com Fiber, Tailwind CSS e Font Awesome",
+  "main": "bin/cli.js",
+  "bin": {
+    "srfibergo": "bin/cli.js"
+  },
+  "files": [
+    "bin",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "go",
+    "fiber",
+    "tailwind",
+    "font-awesome",
+    "cli",
+    "generator"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "fs-extra": "^11.2.0",
+    "inquirer": "^8.2.6"
+  }
+}
