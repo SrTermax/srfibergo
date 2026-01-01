@@ -1,23 +1,25 @@
 #!/usr/bin/env node
 
-const fs = require('fs-extra');
-const path = require('path');
-const chalk = require('chalk');
-const inquirer = require('inquirer');
-const { program } = require('commander');
+const fs = require("fs-extra");
+const path = require("path");
+const chalk = require("chalk");
+const inquirer = require("inquirer");
+const { program } = require("commander");
 
 program
-  .name('srfibergo')
-  .description('CLI para gerar projetos Go com Fiber, Tailwind CSS e Font Awesome')
-  .version('1.0.1');
+  .name("srfibergo")
+  .description(
+    "CLI para gerar projetos Go com Fiber, Tailwind CSS e Font Awesome"
+  )
+  .version("1.0.2");
 
 program
-  .command('create <project-name>')
-  .description('Cria um novo projeto Go com Fiber')
-  .option('-p, --port <port>', 'Porta do servidor (padrão: 3000)', '3000')
+  .command("create <project-name>")
+  .description("Cria um novo projeto Go com Fiber")
+  .option("-p, --port <port>", "Porta do servidor (padrão: 3000)", "3000")
   .action(async (projectName, options) => {
     const targetDir = path.resolve(process.cwd(), projectName);
-    
+
     // Verifica se o diretório já existe
     if (await fs.pathExists(targetDir)) {
       console.log(chalk.red(`❌ O diretório "${projectName}" já existe!`));
@@ -26,35 +28,37 @@ program
 
     try {
       console.log(chalk.blue(`🚀 Criando projeto "${projectName}"...`));
-      
-      let port = options.port || '3000';
-      
+
+      let port = options.port || "3000";
+
       // Valida a porta fornecida
       const portNum = parseInt(port);
       if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
-        console.log(chalk.yellow(`⚠️  Porta inválida "${port}", usando padrão 3000`));
-        port = '3000';
+        console.log(
+          chalk.yellow(`⚠️  Porta inválida "${port}", usando padrão 3000`)
+        );
+        port = "3000";
       } else {
         port = portNum.toString();
       }
-      
+
       // Se não foi fornecida via opção, pergunta interativamente (se possível)
       if (!options.port && process.stdin.isTTY) {
         try {
           const answers = await inquirer.prompt([
             {
-              type: 'input',
-              name: 'port',
-              message: 'Qual porta deseja usar?',
+              type: "input",
+              name: "port",
+              message: "Qual porta deseja usar?",
               default: port,
               validate: (input) => {
                 const p = parseInt(input);
                 if (isNaN(p) || p < 1 || p > 65535) {
-                  return 'Por favor, insira uma porta válida (1-65535)';
+                  return "Por favor, insira uma porta válida (1-65535)";
                 }
                 return true;
-              }
-            }
+              },
+            },
           ]);
           port = answers.port;
         } catch (err) {
@@ -65,14 +69,15 @@ program
 
       // Cria estrutura de diretórios
       await createProjectStructure(targetDir, projectName, port);
-      
-      console.log(chalk.green(`✅ Projeto "${projectName}" criado com sucesso!`));
+
+      console.log(
+        chalk.green(`✅ Projeto "${projectName}" criado com sucesso!`)
+      );
       console.log(chalk.yellow(`\n📝 Próximos passos:`));
       console.log(chalk.white(`   cd ${projectName}`));
       console.log(chalk.white(`   go mod tidy`));
       console.log(chalk.white(`   go run main.go`));
       console.log(chalk.white(`\n🌐 Acesse: http://localhost:${port}`));
-      
     } catch (error) {
       console.error(chalk.red(`❌ Erro ao criar projeto: ${error.message}`));
       if (error.stack) {
@@ -85,68 +90,65 @@ program
 program.parse();
 
 async function createProjectStructure(targetDir, projectName, port) {
-  const templatesDir = path.join(__dirname, '..', 'templates');
-  
+  const templatesDir = path.join(__dirname, "..", "templates");
+
   // Cria diretórios
-  await fs.ensureDir(path.join(targetDir, 'views'));
-  await fs.ensureDir(path.join(targetDir, 'static', 'css'));
-  await fs.ensureDir(path.join(targetDir, 'static', 'js'));
-  await fs.ensureDir(path.join(targetDir, 'handlers'));
-  await fs.ensureDir(path.join(targetDir, 'config'));
+  await fs.ensureDir(path.join(targetDir, "views"));
+  await fs.ensureDir(path.join(targetDir, "static", "css"));
+  await fs.ensureDir(path.join(targetDir, "static", "js"));
+  await fs.ensureDir(path.join(targetDir, "handlers"));
+  await fs.ensureDir(path.join(targetDir, "config"));
 
   // Arquivos principais
   await fs.writeFile(
-    path.join(targetDir, 'main.go'),
+    path.join(targetDir, "main.go"),
     getMainGoContent(port, projectName)
   );
 
   await fs.writeFile(
-    path.join(targetDir, 'go.mod'),
+    path.join(targetDir, "go.mod"),
     getGoModContent(projectName)
   );
 
-  await fs.writeFile(
-    path.join(targetDir, '.gitignore'),
-    getGitignoreContent()
-  );
+  await fs.writeFile(path.join(targetDir, ".gitignore"), getGitignoreContent());
 
   // Handlers
   await fs.writeFile(
-    path.join(targetDir, 'handlers', 'home.go'),
+    path.join(targetDir, "handlers", "home.go"),
     getHomeHandlerContent()
   );
 
   // Config
   await fs.writeFile(
-    path.join(targetDir, 'config', 'config.go'),
+    path.join(targetDir, "config", "config.go"),
     getConfigContent(port)
   );
 
   // Views
   await fs.writeFile(
-    path.join(targetDir, 'views', 'index.html'),
+    path.join(targetDir, "views", "index.html"),
     getIndexHtmlContent()
   );
 
   await fs.writeFile(
-    path.join(targetDir, 'views', 'layout.html'),
+    path.join(targetDir, "views", "layout.html"),
     getLayoutHtmlContent()
   );
 
   // Arquivos estáticos
   await fs.writeFile(
-    path.join(targetDir, 'static', 'css', 'style.css'),
+    path.join(targetDir, "static", "css", "style.css"),
     getStyleCssContent()
   );
 
   await fs.writeFile(
-    path.join(targetDir, 'static', 'js', 'main.js'),
+    path.join(targetDir, "static", "js", "main.js"),
     getMainJsContent()
   );
 
   // README
   await fs.writeFile(
-    path.join(targetDir, 'README.md'),
+    path.join(targetDir, "README.md"),
     getReadmeContent(projectName, port)
   );
 }
