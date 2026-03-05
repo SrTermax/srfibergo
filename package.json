@@ -1,6 +1,6 @@
 {
   "name": "srfibergo",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "CLI para gerar projetos Go com Fiber, Tailwind CSS e Font Awesome",
   "main": "bin/cli.js",
   "bin": {
@@ -11,7 +11,10 @@
     "README.md"
   ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "link": "npm link",
+    "unlink": "npm unlink",
+    "build": "npx pkg . --targets node18-linux --output srfibergo"
   },
   "keywords": [
     "go",
