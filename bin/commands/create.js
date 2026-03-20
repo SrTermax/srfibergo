@@ -36,7 +36,9 @@ async function createProject(projectName, options) {
     logInfo(`Criando projeto "${projectName}"...`);
 
     let port = options.port || "3000";
-    let version = options.version || await getProjectVersion();
+    let withAir = options.withAir || false;
+    let withEnv = options.withEnv || false;
+    const version = await getProjectVersion();
 
     const portValidation = validatePort(port);
     if (!portValidation.valid) {
@@ -46,33 +48,59 @@ async function createProject(projectName, options) {
       port = portValidation.port;
     }
 
-    if (!options.port && process.stdin.isTTY) {
-      try {
-        const answers = await inquirer.prompt([
-          {
-            type: "input",
-            name: "port",
-            message: "Qual porta deseja usar?",
-            default: port,
-            validate: (input) => {
-              const p = parseInt(input);
-              if (isNaN(p) || p < 1 || p > 65535) {
-                return "Por favor, insira uma porta válida (1-65535)";
-              }
-              return true;
-            },
+    if (process.stdin.isTTY) {
+      const questions = [];
+
+      if (!options.port) {
+        questions.push({
+          type: "input",
+          name: "port",
+          message: "Qual porta deseja usar?",
+          default: port,
+          validate: (input) => {
+            const p = parseInt(input);
+            if (isNaN(p) || p < 1 || p > 65535) {
+              return "Por favor, insira uma porta válida (1-65535)";
+            }
+            return true;
           },
-        ]);
-        port = answers.port;
-      } catch (err) {
-        logWarning(`Usando porta padrão: ${port}`);
+        });
+      }
+
+      if (!options.withAir) {
+        questions.push({
+          type: "confirm",
+          name: "withAir",
+          message: "Adicionar hot reload com Air? (.air.toml)",
+          default: false,
+        });
+      }
+
+      if (!options.withEnv) {
+        questions.push({
+          type: "confirm",
+          name: "withEnv",
+          message: "Adicionar variáveis de ambiente? (.env + godotenv)",
+          default: false,
+        });
+      }
+
+      if (questions.length > 0) {
+        try {
+          const answers = await inquirer.prompt(questions);
+          if (answers.port) port = answers.port;
+          if (answers.withAir !== undefined) withAir = answers.withAir;
+          if (answers.withEnv !== undefined) withEnv = answers.withEnv;
+        } catch (err) {
+          logWarning("Usando configurações padrão");
+        }
       }
     }
 
-    await createProjectStructure(targetDir, projectName, port, version);
+    await createProjectStructure(targetDir, projectName, port, version, { withAir, withEnv });
 
     logSuccess(`Projeto "${projectName}" criado com sucesso!`);
-    printNextSteps(projectName, port);
+    printNextSteps(projectName, port, { withAir, withEnv });
   } catch (error) {
     logError(`Erro ao criar projeto: ${error.message}`);
     if (error.stack) {
@@ -82,7 +110,9 @@ async function createProject(projectName, options) {
   }
 }
 
-async function createProjectStructure(targetDir, projectName, port, version) {
+async function createProjectStructure(targetDir, projectName, port, version, opts = {}) {
+  const { withAir, withEnv } = opts;
+
   await fs.ensureDir(path.join(targetDir, "views"));
   await fs.ensureDir(path.join(targetDir, "static", "css"));
   await fs.ensureDir(path.join(targetDir, "static", "js"));
@@ -91,24 +121,32 @@ async function createProjectStructure(targetDir, projectName, port, version) {
 
   await fs.writeFile(
     path.join(targetDir, "main.go"),
-    templates.getMainGoContent(port, projectName)
+    templates.getMainGoContent(port, projectName, withEnv)
   );
 
   await fs.writeFile(
     path.join(targetDir, "go.mod"),
-    templates.getGoModContent(projectName)
+    templates.getGoModContent(projectName, withEnv)
   );
 
-  await fs.writeFile(path.join(targetDir, ".gitignore"), templates.getGitignoreContent());
+  await fs.writeFile(
+    path.join(targetDir, ".gitignore"),
+    templates.getGitignoreContent(withAir)
+  );
 
-await fs.writeFile(
+  await fs.writeFile(
     path.join(targetDir, "handlers", "home.go"),
     templates.getHomeHandlerContent(version)
   );
 
   await fs.writeFile(
+    path.join(targetDir, "handlers", "ping.go"),
+    templates.getPingHandlerContent()
+  );
+
+  await fs.writeFile(
     path.join(targetDir, "config", "config.go"),
-    templates.getConfigContent(port)
+    templates.getConfigContent(port, withEnv)
   );
 
   await fs.writeFile(
@@ -133,8 +171,23 @@ await fs.writeFile(
 
   await fs.writeFile(
     path.join(targetDir, "README.md"),
-    templates.getReadmeContent(projectName, port, version)
+    templates.getReadmeContent(projectName, port, version, opts)
   );
+
+  if (withAir) {
+    await fs.ensureDir(path.join(targetDir, "tmp"));
+    await fs.writeFile(
+      path.join(targetDir, ".air.toml"),
+      templates.getAirTomlContent()
+    );
+  }
+
+  if (withEnv) {
+    await fs.writeFile(
+      path.join(targetDir, ".env"),
+      templates.getEnvContent(port)
+    );
+  }
 }
 
 module.exports = { createProject };

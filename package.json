@@ -1,7 +1,7 @@
 {
   "name": "srfibergo",
-  "version": "1.0.3",
-  "description": "CLI para gerar projetos Go com Fiber, Tailwind CSS e Font Awesome",
+  "version": "1.0.4",
+  "description": "CLI to scaffold Go + Fiber web projects with Tailwind CSS, Font Awesome, hot reload (Air) and .env support. Generate a full-stack Go project in seconds.",
   "main": "bin/cli.js",
   "bin": {
     "srfibergo": "bin/cli.js"
@@ -18,14 +18,42 @@
   },
   "keywords": [
     "go",
+    "golang",
     "fiber",
-    "tailwind",
-    "font-awesome",
+    "go-fiber",
+    "gofiber",
     "cli",
-    "generator"
+    "scaffold",
+    "generator",
+    "boilerplate",
+    "starter",
+    "template",
+    "tailwind",
+    "tailwindcss",
+    "font-awesome",
+    "web",
+    "fullstack",
+    "backend",
+    "http",
+    "server",
+    "air",
+    "hot-reload",
+    "godotenv",
+    "create-app"
   ],
-  "author": "",
+  "author": "SrTermax <github.com/SrTermax>",
   "license": "MIT",
+  "homepage": "https://github.com/SrTermax/srfibergo#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SrTermax/srfibergo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SrTermax/srfibergo/issues"
+  },
+  "engines": {
+    "node": ">=16"
+  },
   "dependencies": {
     "chalk": "^4.1.2",
     "commander": "^11.1.0",
