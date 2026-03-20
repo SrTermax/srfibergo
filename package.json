@@ -1,6 +1,6 @@
 {
   "name": "srfibergo",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "CLI to scaffold Go + Fiber web projects with Tailwind CSS, Font Awesome, hot reload (Air) and .env support. Generate a full-stack Go project in seconds.",
   "main": "bin/cli.js",
   "bin": {
