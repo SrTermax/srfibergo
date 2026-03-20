@@ -1,4 +1,4 @@
-# srfibergo 1.0.4 ⚡
+# srfibergo 1.0.5 ⚡
 
 > 🚀 CLI para gerar projetos **Go + Fiber** completos em segundos — com **Tailwind CSS**, **Font Awesome**, hot reload 🔥 e suporte a `.env`.
 
