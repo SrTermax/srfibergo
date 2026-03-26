@@ -4,7 +4,7 @@ const { program } = require("commander");
 const chalk = require("chalk");
 const { createProject } = require("./commands/create");
 
-const VERSION = "1.0.4";
+const VERSION = "1.0.7";
 
 function showBanner() {
   console.log(
