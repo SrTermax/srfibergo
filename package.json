@@ -52,7 +52,7 @@
   "homepage": "https://github.com/SrTermax/srfibergo#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/SrTermax/srfibergo.git"
+    "url": "git+https://github.com/SrTermax/srfibergo.git"
   },
   "bugs": {
     "url": "https://github.com/SrTermax/srfibergo/issues"
