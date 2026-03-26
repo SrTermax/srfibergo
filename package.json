@@ -1,7 +1,7 @@
 {
   "name": "srfibergo",
-  "version": "1.0.5",
-  "description": "CLI to scaffold Go + Fiber web projects with Tailwind CSS, Font Awesome, hot reload (Air) and .env support. Generate a full-stack Go project in seconds.",
+  "version": "1.0.6",
+  "description": "CLI to scaffold Go + Fiber web projects with Tailwind CSS, Font Awesome, hot reload (Air), .env support, MongoDB integration and Docker deploy. Generate a full-stack Go project in seconds.",
   "main": "bin/cli.js",
   "bin": {
     "srfibergo": "bin/cli.js"
@@ -39,6 +39,12 @@
     "air",
     "hot-reload",
     "godotenv",
+    "mongodb",
+    "mongo",
+    "docker",
+    "docker-compose",
+    "vps",
+    "deploy",
     "create-app"
   ],
   "author": "SrTermax <github.com/SrTermax>",

@@ -1,4 +1,54 @@
-function getMainGoContent(port, projectName, withEnv) {
+function getMainGoContent(port, projectName, withEnv, withMongo) {
+  if (withMongo) {
+    // withMongo implies withEnv
+    return `package main
+
+import (
+	"log"
+	"os"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/template/html/v2"
+	"github.com/joho/godotenv"
+
+	"${projectName}/config"
+	"${projectName}/handlers"
+)
+
+func main() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("Arquivo .env não encontrado, usando variáveis de ambiente do sistema")
+	}
+
+	config.ConnectDB()
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "${port}"
+	}
+
+	engine := html.New("./views", ".html")
+	engine.Reload(true)
+
+	app := fiber.New(fiber.Config{
+		Views: engine,
+	})
+
+	app.Static("/static", "./static")
+
+	setupRoutes(app)
+
+	log.Printf("🚀 Servidor rodando em http://localhost:%s", port)
+	log.Fatal(app.Listen(":" + port))
+}
+
+func setupRoutes(app *fiber.App) {
+	app.Get("/", handlers.Home)
+	app.Get("/api/ping", handlers.Ping)
+}
+`;
+  }
+
   if (withEnv) {
     return `package main
 
@@ -79,8 +129,9 @@ func setupRoutes(app *fiber.App) {
 `;
 }
 
-function getGoModContent(projectName, withEnv) {
-  const godotenvDep = withEnv ? `\tgithub.com/joho/godotenv v1.5.1\n` : "";
+function getGoModContent(projectName, withEnv, withMongo) {
+  const godotenvDep = (withEnv || withMongo) ? `\tgithub.com/joho/godotenv v1.5.1\n` : "";
+  const mongoDep = withMongo ? `\tgo.mongodb.org/mongo-driver v1.13.1\n` : "";
   return `module ${projectName}
 
 go 1.21
@@ -88,7 +139,7 @@ go 1.21
 require (
 \tgithub.com/gofiber/fiber/v2 v2.52.0
 \tgithub.com/gofiber/template/html/v2 v2.1.0
-${godotenvDep})
+${godotenvDep}${mongoDep})
 `;
 }
 
@@ -1380,24 +1431,157 @@ tmp_dir = "tmp"
 `;
 }
 
-function getEnvContent(port) {
+function getEnvContent(port, withMongo) {
+  const mongoVars = withMongo
+    ? `\n# MongoDB\nMONGO_URI=mongodb://localhost:27017\nMONGO_DB=meudb\n`
+    : `\n# Adicione suas variáveis aqui\n# DB_HOST=localhost\n# DB_PORT=5432\n# DB_NAME=meu_banco\n# DB_USER=usuario\n# DB_PASS=senha\n`;
+
   return `# Configurações do servidor
 PORT=${port}
 APP_ENV=development
+${mongoVars}`;
+}
 
-# Adicione suas variáveis aqui
-# DB_HOST=localhost
-# DB_PORT=5432
-# DB_NAME=meu_banco
-# DB_USER=usuario
-# DB_PASS=senha
+// ─── MongoDB ─────────────────────────────────────────────────────────────────
+
+function getMongoConfigContent() {
+  return `package config
+
+import (
+	"context"
+	"log"
+	"os"
+	"time"
+
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+var DB *mongo.Database
+
+func ConnectDB() {
+	uri := os.Getenv("MONGO_URI")
+	if uri == "" {
+		uri = "mongodb://localhost:27017"
+	}
+
+	dbName := os.Getenv("MONGO_DB")
+	if dbName == "" {
+		dbName = "meudb"
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
+	if err != nil {
+		log.Fatalf("Erro ao conectar ao MongoDB: %v", err)
+	}
+
+	if err = client.Ping(ctx, nil); err != nil {
+		log.Fatalf("MongoDB não respondeu: %v", err)
+	}
+
+	DB = client.Database(dbName)
+	log.Printf("✅ MongoDB conectado: %s / %s", uri, dbName)
+}
+`;
+}
+
+// ─── Docker ──────────────────────────────────────────────────────────────────
+
+function getDockerfileContent() {
+  return `# ── Build stage ─────────────────────────────────────
+FROM golang:1.21-alpine AS builder
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN go build -o server .
+
+# ── Run stage ────────────────────────────────────────
+FROM alpine:latest
+
+WORKDIR /app
+
+COPY --from=builder /app/server .
+COPY views/ views/
+COPY static/ static/
+
+EXPOSE 3000
+
+CMD ["./server"]
+`;
+}
+
+function getDockerComposeContent(port, withMongo) {
+  if (withMongo) {
+    return `version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "${port}:${port}"
+    env_file:
+      - .env
+    environment:
+      - PORT=${port}
+      - APP_ENV=production
+      - MONGO_URI=mongodb://mongo:27017
+    depends_on:
+      - mongo
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+`;
+  }
+
+  return `version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "${port}:${port}"
+    env_file:
+      - .env
+    environment:
+      - PORT=${port}
+      - APP_ENV=production
+    restart: unless-stopped
+`;
+}
+
+function getDockerignoreContent() {
+  return `tmp/
+*.exe
+.env
+.env.*
+!.env.example
+vendor/
+.git/
+.gitignore
+README.md
 `;
 }
 
 // ─── README ──────────────────────────────────────────────────────────────────
 
 function getReadmeContent(projectName, port, version, opts = {}) {
-  const { withAir, withEnv } = opts;
+  const { withAir, withEnv, withMongo, withDocker } = opts;
 
   const techStack = [
     "- **Go** - Linguagem de programação",
@@ -1405,14 +1589,30 @@ function getReadmeContent(projectName, port, version, opts = {}) {
     "- **Tailwind CSS** - Framework CSS utilitário (via CDN)",
     "- **Font Awesome** - Ícones (via CDN)",
     withAir ? "- **Air** - Hot reload para desenvolvimento" : "",
-    withEnv ? "- **godotenv** - Variáveis de ambiente via .env" : "",
+    (withEnv || withMongo) ? "- **godotenv** - Variáveis de ambiente via .env" : "",
+    withMongo ? "- **MongoDB** - Banco de dados NoSQL (driver oficial Go)" : "",
+    withDocker ? "- **Docker** - Containerização para deploy em VPS" : "",
   ].filter(Boolean).join("\n");
 
   const runCmd = withAir ? "air" : "go run main.go";
-  const envNote = withEnv ? "\n```bash\n# Configure suas variáveis\ncp .env .env.local\n```\n" : "";
+  const envNote = (withEnv || withMongo) ? "\n```bash\n# Configure suas variáveis\ncp .env .env.local\n```\n" : "";
   const airNote = withAir
     ? "\n> **Hot reload:** `air` reinicia automaticamente ao salvar arquivos Go ou HTML.\n> Instale com: `go install github.com/air-verse/air@latest`\n"
     : "";
+  const mongoNote = withMongo
+    ? "\n## MongoDB\n\nA conexão é configurada em `config/db.go` e iniciada no `main.go`.\nDefina `MONGO_URI` e `MONGO_DB` no `.env` para conectar ao seu banco.\n\nExemplo de uso num handler:\n\n```go\ncollection := config.DB.Collection(\"usuarios\")\n```\n"
+    : "";
+  const dockerNote = withDocker
+    ? "\n## Docker\n\n```bash\n# Subir com docker-compose\ndocker-compose up -d\n\n# Build manual\ndocker build -t " + projectName + " .\ndocker run -p " + port + ":" + port + " " + projectName + "\n```\n"
+    : "";
+
+  const extraFiles = [
+    withEnv || withMongo ? "├── .env" : "",
+    withAir ? "├── .air.toml" : "",
+    withDocker ? "├── Dockerfile\n├── docker-compose.yml\n├── .dockerignore" : "",
+  ].filter(Boolean).join("\n");
+
+  const mongoConfigFile = withMongo ? "\n│   └── db.go" : "";
 
   return `# ${projectName}
 
@@ -1428,11 +1628,12 @@ ${techStack}
 ${projectName}/
 ├── main.go
 ├── go.mod
-├── .gitignore${withEnv ? "\n├── .env" : ""}${withAir ? "\n├── .air.toml" : ""}
+├── .gitignore${extraFiles ? "\n" + extraFiles : ""}
 ├── handlers/
-│   └── home.go
+│   ├── home.go
+│   └── ping.go
 ├── config/
-│   └── config.go
+│   └── config.go${mongoConfigFile}
 ├── views/
 │   ├── layout.html
 │   └── index.html
@@ -1447,7 +1648,7 @@ ${projectName}/
 go mod tidy
 ${runCmd}
 \`\`\`
-${envNote}${airNote}
+${envNote}${airNote}${mongoNote}${dockerNote}
 Acesse: http://localhost:${port}
 
 ## Recursos
@@ -1455,7 +1656,7 @@ Acesse: http://localhost:${port}
 - [Fiber Docs](https://docs.gofiber.io/)
 - [Tailwind CSS](https://tailwindcss.com/docs)
 - [Font Awesome](https://fontawesome.com/search)
-
+${withMongo ? "- [MongoDB Go Driver](https://www.mongodb.com/docs/drivers/go/current/)\n" : ""}${withDocker ? "- [Docker Docs](https://docs.docker.com/)\n" : ""}
 ---
 
 Gerado com [srfibergo v${version}](https://github.com/SrTermax/srfibergo) por [SrTermax](https://github.com/SrTermax)
@@ -1475,5 +1676,9 @@ module.exports = {
   getMainJsContent,
   getAirTomlContent,
   getEnvContent,
+  getMongoConfigContent,
+  getDockerfileContent,
+  getDockerComposeContent,
+  getDockerignoreContent,
   getReadmeContent,
 };

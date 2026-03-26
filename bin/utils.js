@@ -25,7 +25,7 @@ function logWarning(message) {
 }
 
 function printNextSteps(projectName, port, opts = {}) {
-  const { withAir, withEnv } = opts;
+  const { withAir, withEnv, withMongo, withDocker } = opts;
 
   console.log(chalk.yellow(`\n📝 Próximos passos:`));
   console.log(chalk.white(`   cd ${projectName}`));
@@ -35,15 +35,28 @@ function printNextSteps(projectName, port, opts = {}) {
     console.log(chalk.white(`   air`));
     console.log(chalk.gray(`\n   Não tem Air? Instale com:`));
     console.log(chalk.gray(`   go install github.com/air-verse/air@latest`));
-  } else {
+  } else if (!withDocker) {
     console.log(chalk.white(`   go run main.go`));
   }
 
-  if (withEnv) {
+  if (withEnv || withMongo) {
     console.log(chalk.gray(`\n   Configure suas variáveis em .env`));
   }
 
-  console.log(chalk.white(`\n🌐 Acesse: http://localhost:${port}`));
+  if (withMongo) {
+    console.log(chalk.gray(`   Certifique-se que o MongoDB está rodando em MONGO_URI`));
+  }
+
+  if (withDocker) {
+    console.log(chalk.cyan(`\n   🐳 Para subir com Docker:`));
+    console.log(chalk.white(`   docker-compose up -d`));
+  }
+
+  if (!withDocker) {
+    console.log(chalk.white(`\n🌐 Acesse: http://localhost:${port}`));
+  } else {
+    console.log(chalk.white(`\n🌐 Acesse: http://localhost:${port}  (após docker-compose up)`));
+  }
 }
 
 module.exports = {

@@ -38,6 +38,8 @@ async function createProject(projectName, options) {
     let port = options.port || "3000";
     let withAir = options.withAir || false;
     let withEnv = options.withEnv || false;
+    let withMongo = options.withMongo || false;
+    let withDocker = options.withDocker || false;
     const version = await getProjectVersion();
 
     const portValidation = validatePort(port);
@@ -85,22 +87,45 @@ async function createProject(projectName, options) {
         });
       }
 
+      if (!options.withMongo) {
+        questions.push({
+          type: "confirm",
+          name: "withMongo",
+          message: "Adicionar integração com MongoDB? (driver oficial + config/db.go)",
+          default: false,
+        });
+      }
+
+      if (!options.withDocker) {
+        questions.push({
+          type: "confirm",
+          name: "withDocker",
+          message: "Adicionar Dockerfiles para deploy em VPS? (Dockerfile + docker-compose.yml)",
+          default: false,
+        });
+      }
+
       if (questions.length > 0) {
         try {
           const answers = await inquirer.prompt(questions);
           if (answers.port) port = answers.port;
           if (answers.withAir !== undefined) withAir = answers.withAir;
           if (answers.withEnv !== undefined) withEnv = answers.withEnv;
+          if (answers.withMongo !== undefined) withMongo = answers.withMongo;
+          if (answers.withDocker !== undefined) withDocker = answers.withDocker;
         } catch (err) {
           logWarning("Usando configurações padrão");
         }
       }
     }
 
-    await createProjectStructure(targetDir, projectName, port, version, { withAir, withEnv });
+    // MongoDB requer variáveis de ambiente
+    if (withMongo) withEnv = true;
+
+    await createProjectStructure(targetDir, projectName, port, version, { withAir, withEnv, withMongo, withDocker });
 
     logSuccess(`Projeto "${projectName}" criado com sucesso!`);
-    printNextSteps(projectName, port, { withAir, withEnv });
+    printNextSteps(projectName, port, { withAir, withEnv, withMongo, withDocker });
   } catch (error) {
     logError(`Erro ao criar projeto: ${error.message}`);
     if (error.stack) {
@@ -111,7 +136,7 @@ async function createProject(projectName, options) {
 }
 
 async function createProjectStructure(targetDir, projectName, port, version, opts = {}) {
-  const { withAir, withEnv } = opts;
+  const { withAir, withEnv, withMongo, withDocker } = opts;
 
   await fs.ensureDir(path.join(targetDir, "views"));
   await fs.ensureDir(path.join(targetDir, "static", "css"));
@@ -121,12 +146,12 @@ async function createProjectStructure(targetDir, projectName, port, version, opt
 
   await fs.writeFile(
     path.join(targetDir, "main.go"),
-    templates.getMainGoContent(port, projectName, withEnv)
+    templates.getMainGoContent(port, projectName, withEnv, withMongo)
   );
 
   await fs.writeFile(
     path.join(targetDir, "go.mod"),
-    templates.getGoModContent(projectName, withEnv)
+    templates.getGoModContent(projectName, withEnv, withMongo)
   );
 
   await fs.writeFile(
@@ -146,7 +171,7 @@ async function createProjectStructure(targetDir, projectName, port, version, opt
 
   await fs.writeFile(
     path.join(targetDir, "config", "config.go"),
-    templates.getConfigContent(port, withEnv)
+    templates.getConfigContent(port, withEnv || withMongo)
   );
 
   await fs.writeFile(
@@ -182,10 +207,32 @@ async function createProjectStructure(targetDir, projectName, port, version, opt
     );
   }
 
-  if (withEnv) {
+  if (withEnv || withMongo) {
     await fs.writeFile(
       path.join(targetDir, ".env"),
-      templates.getEnvContent(port)
+      templates.getEnvContent(port, withMongo)
+    );
+  }
+
+  if (withMongo) {
+    await fs.writeFile(
+      path.join(targetDir, "config", "db.go"),
+      templates.getMongoConfigContent()
+    );
+  }
+
+  if (withDocker) {
+    await fs.writeFile(
+      path.join(targetDir, "Dockerfile"),
+      templates.getDockerfileContent()
+    );
+    await fs.writeFile(
+      path.join(targetDir, "docker-compose.yml"),
+      templates.getDockerComposeContent(port, withMongo)
+    );
+    await fs.writeFile(
+      path.join(targetDir, ".dockerignore"),
+      templates.getDockerignoreContent()
     );
   }
 }
